@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Note from './components/Note'
 import LoginForm from './components/LoginForm'
 import NoteForm from './components/NoteForm'
 import noteService from './services/notes'
 import loginService from './services/login'
 import Notification from './components/Notification'
+import Togglable from './components/Togglable'
 
 const App = (props) => {
   const [notes, setNotes] = useState([])
-  const [newNote, setNewNote] = useState('')
   const [showAll, setShowAll] = useState(true)
   const [errorMessage, setErrorMessage] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
-  const [username, setUsername] = useState(null)
-  const [password, setPassword] = useState(null)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
   const [user, setUser] = useState(null)
 
   useEffect(() => {
@@ -33,18 +33,12 @@ const App = (props) => {
     }
   }, [])
   
-  const addNote = (event) => {
-    event.preventDefault()
-    const noteObject = {
-      content: newNote,
-      important: Math.random() < 0.5,
-    }
-
+  const addNote = (noteObject) => {
+    noteFormRef.current.toggleVisibility()
     noteService
       .create(noteObject)
       .then(returnedNote => {
         setNotes(notes.concat(returnedNote))
-        setNewNote('')
       })
       .then(() => {
         setSuccessMessage(
@@ -56,11 +50,6 @@ const App = (props) => {
       })
   }
 
-
-  const handleNoteChange = (event) => {
-    console.log(event.target.value)
-    setNewNote(event.target.value)
-  }
 
   const toggleImportanceOf = id => {
     const note = notes.find(n => n.id === id)
@@ -104,6 +93,14 @@ const App = (props) => {
     }
   }
 
+  const handleLogout = () => {
+    window.localStorage.removeItem('loggedNoteAppUser')
+    setUser(null)
+  }
+
+  const noteFormRef = useRef()
+
+
   const notesToShow = showAll
     ? notes
     : notes.filter(note => note.important)
@@ -114,7 +111,17 @@ const App = (props) => {
       <Notification message={errorMessage} messageType='error' />
       <Notification message={successMessage} messageType='success' />
       {
-        user === null && <LoginForm handleLogin={handleLogin} username={username} setUsername={setUsername} password={password} setPassword={setPassword} />
+        user !== null &&
+        <div>
+          logged in as {user.username}
+          <button onClick={handleLogout}>logout</button>
+        </div>
+      }
+      {
+        user === null && 
+        <Togglable buttonLabel='login'>
+          <LoginForm handleLogin={handleLogin} username={username} setUsername={setUsername} password={password} setPassword={setPassword} />
+        </Togglable>
       }
       <div>
         <button onClick={() => setShowAll(!showAll)}>
@@ -127,7 +134,10 @@ const App = (props) => {
         )}
       </ul>
       {
-        user !== null && <NoteForm addNote={addNote} newNote={newNote} handleNoteChange={handleNoteChange} />
+        user !== null && 
+        <Togglable buttonLabel='new note' ref={noteFormRef}>
+          <NoteForm createNote={addNote} />
+        </Togglable>
       }    
       </div>
   )
